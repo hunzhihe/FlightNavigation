@@ -1,0 +1,86 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "AFlightNavMeshBoundsVolume.h"
+#include "BanFlightNavMeshBoundsVolume.h"
+#include "Components/ActorComponent.h"
+#include "OctreeFlightComponent.generated.h"
+
+// 每个网格节点
+USTRUCT(BlueprintType)
+struct FAStarNode
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FVector Location;     // 网格中心位置，如 (0,0,0) 表示该格子中心
+
+	UPROPERTY()
+    float NodeSize = 100.0f;
+	
+	UPROPERTY()
+	bool bIsWalkable = true; // 是否可通行
+
+	UPROPERTY()
+	float GScore = TNumericLimits<float>::Max(); // 从起点到本节点的实际代价
+
+	UPROPERTY()
+	float FScore = TNumericLimits<float>::Max(); // G + H
+
+	//父节点，用于回溯路径
+	FAStarNode* Parent = nullptr;
+	
+	bool operator==(const FAStarNode& Other) const
+	{
+		return Location == Other.Location;
+	}
+
+	friend uint32 GetTypeHash(const FAStarNode& Node)
+	{
+		return GetTypeHash(Node.Location);
+	}
+};
+
+
+
+
+UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+class FLGHTNAVIGATIONPLUGINS_API UOctreeFlightComponent : public UActorComponent
+{
+	GENERATED_BODY()
+public:
+	UOctreeFlightComponent();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FlightNavigation")
+	TSoftObjectPtr<AFlightNavMeshBoundsVolume> FlightNavMeshBoundsVolume =  nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FlightNavigation")
+	TArray<TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>> BanFlightNavMeshBoundsVolumes;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FlightNavigation")
+	float NodeSize = 100.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FlightNavigation")
+	FVector Start = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FlightNavigation")
+	FVector Goal = FVector::ZeroVector;
+	
+	UPROPERTY(BlueprintReadOnly,Category="FlightNavigation")
+	FVector NavMeshMinBounds = FVector::ZeroVector;
+	UPROPERTY(BlueprintReadOnly, Category = "FlightNavigation")
+	FVector NavMeshMaxBounds = FVector::ZeroVector;
+
+	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
+	TArray<FVector> FindFlightPath(const TArray<FAStarNode>& VoxelGrid);
+	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
+	TArray<FAStarNode> InitializeGenerateFlightNavMesh();
+	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
+	void UpdateVoxelsInObstructionBox(const TArray<FAStarNode>& VoxelGrid);
+
+	//可视化被阻塞的区域
+	void DrawDebugVoxelBlocked(const FVector& VoxelCenter);
+private:
+
+	TMap<FVector, FAStarNode> VoxelGrids;
+};
