@@ -15,14 +15,14 @@ struct FAStarNode
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FVector Location;     // 网格中心位置，如 (0,0,0) 表示该格子中心
+	FVector Location;// 网格中心位置，如 (0,0,0) 表示该格子中心
 
 	UPROPERTY()
-    float NodeSize = 100.0f;
-	
+	float NodeSize = 100.0f;
+
 	UPROPERTY()
 	bool bIsWalkable = true; // 是否可通行
-
+	
 	UPROPERTY()
 	float GScore = TNumericLimits<float>::Max(); // 从起点到本节点的实际代价
 
@@ -71,16 +71,49 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "FlightNavigation")
 	FVector NavMeshMaxBounds = FVector::ZeroVector;
 
+	/**
+	 * @brief 寻找飞行路径
+	 * 
+	 * 使用A*算法在体素网格中寻找从起点到终点的最优飞行路径
+	 * 
+	 * @param VoxelGrid 体素网格数据，包含障碍物信息和可飞行区域
+	 * @return FVector数组，表示飞行路径上的关键点坐标
+	 */
 	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
-	TArray<FVector> FindFlightPath(const TArray<FAStarNode>& VoxelGrid);
+		TArray<FVector> FindFlightPath(const TArray<FAStarNode>& VoxelGrid);
+	
+	/**
+	 * @brief 初始化并生成飞行导航网格
+	 * 
+	 * 初始化飞行导航系统所需的体素网格数据，为后续路径规划做准备
+	 * 
+	 * @return FAStarNode数组，表示初始化后的体素网格节点数据
+	 */
 	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
-	TArray<FAStarNode> InitializeGenerateFlightNavMesh();
+	TMap<FVector, FAStarNode> InitializeGenerateFlightNavMesh();
+	
+	/**
+	 * @brief 更新障碍物包围盒内的体素状态
+	 * 
+	 * 根据新的障碍物信息，更新体素网格中受影响区域的体素状态
+	 * 
+	 * @param VoxelGrid 更新后的体素网格数据
+	 */
 	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
 	void UpdateVoxelsInObstructionBox(const TArray<FAStarNode>& VoxelGrid);
+	
 
 	//可视化被阻塞的区域
 	void DrawDebugVoxelBlocked(const FVector& VoxelCenter);
+
+	
 private:
 
+	//全体体素网格数据
 	TMap<FVector, FAStarNode> VoxelGrids;
+    //障碍物包围盒体素网格
+	TArray<FVector> BanVoxelGridKey;
+
+	// ⭐ 加锁对象：保护 VoxelGrid 的读写
+	FCriticalSection VoxelGridCriticalSection;
 };

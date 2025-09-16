@@ -43,10 +43,10 @@ public:
 
 	/*-----------Voxel导航-----------------*/
 	// 生成 Voxel 网格：给定范围、体素大小，返回所有可通行 Voxel
-	static TArray<FAStarNode> GenerateVoxelGrid(
+	static TMap<FVector,FAStarNode> GenerateVoxelGrid(
 		UWorld* World,
-		const FVector& MinBounds,
-		const FVector& MaxBounds,
+		FVector& MinBounds,
+		FVector& MaxBounds,
 		float VoxelSize
 	);
 	// 检测某个位置是否可通行（用 LineTrace 向下或全方位）

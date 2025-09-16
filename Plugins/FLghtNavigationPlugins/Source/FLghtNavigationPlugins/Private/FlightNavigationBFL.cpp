@@ -298,11 +298,10 @@ TArray<FVector> UFlightNavigationBFL::RetracePath(
 	return Path;
 }
 
-TArray<FAStarNode> UFlightNavigationBFL::GenerateVoxelGrid(UWorld* World, const FVector& MinBounds,
-	const FVector& MaxBounds, float VoxelSize)
+TMap<FVector,FAStarNode> UFlightNavigationBFL::GenerateVoxelGrid(UWorld* World,  FVector& MinBounds,
+	 FVector& MaxBounds, float VoxelSize)
 {
-	TArray<FAStarNode> Voxels;
-
+	TMap<FVector, FAStarNode> VoxelGrids;
 	for (float X = MinBounds.X; X < MaxBounds.X; X += VoxelSize)
 	{
 		for (float Y = MinBounds.Y; Y < MaxBounds.Y; Y += VoxelSize)
@@ -312,18 +311,17 @@ TArray<FAStarNode> UFlightNavigationBFL::GenerateVoxelGrid(UWorld* World, const 
 				FVector VoxelCenter = FVector(X + VoxelSize * 0.5f, Y + VoxelSize * 0.5f, Z + VoxelSize * 0.5f);
 				bool bWalkable = IsLocationWalkable(World, VoxelCenter, VoxelSize);
 
-				Voxels.Add(FAStarNode(VoxelCenter, bWalkable));
+				VoxelGrids.Add(VoxelCenter, FAStarNode(VoxelCenter, VoxelSize, bWalkable));
 
 				// 可选：可视化每个体素（调试用）
-                #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				
 				FColor Color = bWalkable ? FColor::Green : FColor::Red;
-				DrawDebugBox(World, VoxelCenter, FVector(VoxelSize * 0.5f), FQuat::Identity, Color, false, 100, 0, 1.0f);
-                #endif
+				DrawDebugBox(World, VoxelCenter, FVector(VoxelSize * 0.5f), FQuat::Identity, Color, false, 10.0f, 0, 1.0f);
+				
 			}
 		}
 	}
-
-	return Voxels;
+	return VoxelGrids;
 }
 
 bool UFlightNavigationBFL::IsLocationWalkable( const UWorld* World, const FVector& Location, float VoxelSize)
@@ -347,8 +345,6 @@ bool UFlightNavigationBFL::IsLocationWalkable( const UWorld* World, const FVecto
 		ECC_Visibility,                 // 或你自定义的 Collision Channel
 		Params
 	);
-	
-	
 
 	// 如果没有命中，认为可通行；或者你也可以根据 Hit 的 Actor 类型判断
 	return !bHit;
