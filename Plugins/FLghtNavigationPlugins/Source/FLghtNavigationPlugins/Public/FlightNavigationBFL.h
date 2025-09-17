@@ -18,7 +18,6 @@ class FLGHTNAVIGATIONPLUGINS_API UFlightNavigationBFL : public UBlueprintFunctio
 public:
 	/*-----------A*算法-----------------*/	
 	// 寻路入口函数（寻路主函数）
-	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
 	static TArray<FVector> FindPath(
 		const FVector& Start,
 		const FVector& Goal,
@@ -52,4 +51,21 @@ public:
 	// 检测某个位置是否可通行（用 LineTrace 向下或全方位）
 	static bool IsLocationWalkable(const UWorld* World, const FVector& Location, float VoxelSize);
 	/*-----------Voxel导航-----------------*/
+
+
+	
+	/*-----------动态障碍物包围盒-----------------*/
+    // 更新所有动态障碍物包围盒中的体素网格状态
+	static void UpdateVoxelsInAllObstructionBox(
+	const UWorld* World,
+		TArray<TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>>& BanFlightNavMeshBoundsVolumes,
+		TMap<FVector, FAStarNode>& VoxelGrids,
+		TArray<FVector>& Path,
+		bool& bIsPath,
+		float NodeSize);
+	
+	/*-----------动态障碍物包围盒-----------------*/
+
+	/*-----------Debug-----------------*/
+	static void DrawDebugVoxelBlocked(const UWorld* World,const FVector& VoxelCenter, float NodeSize);
 };

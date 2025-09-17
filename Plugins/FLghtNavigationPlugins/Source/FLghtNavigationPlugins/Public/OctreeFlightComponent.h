@@ -43,8 +43,12 @@ struct FAStarNode
 	}
 };
 
-
-
+// ✅ 定义一个委托类型：当 Voxel 状态变化时触发
+// 参数可以是：变化的 Voxel 位置、是否可通行、
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnVoxelStateChanged,
+	bool, bIsPath
+	);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class FLGHTNAVIGATIONPLUGINS_API UOctreeFlightComponent : public UActorComponent
@@ -75,12 +79,10 @@ public:
 	 * @brief 寻找飞行路径
 	 * 
 	 * 使用A*算法在体素网格中寻找从起点到终点的最优飞行路径
-	 * 
-	 * @param VoxelGrid 体素网格数据，包含障碍物信息和可飞行区域
 	 * @return FVector数组，表示飞行路径上的关键点坐标
 	 */
 	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
-		TArray<FVector> FindFlightPath(const TArray<FAStarNode>& VoxelGrid);
+		TArray<FVector> FindFlightPath();
 	
 	/**
 	 * @brief 初始化并生成飞行导航网格
@@ -97,23 +99,33 @@ public:
 	 * 
 	 * 根据新的障碍物信息，更新体素网格中受影响区域的体素状态
 	 * 
-	 * @param VoxelGrid 更新后的体素网格数据
+	 * 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
-	void UpdateVoxelsInObstructionBox(const TArray<FAStarNode>& VoxelGrid);
+	void UpdateVoxelsInObstructionBox();
 	
 
 	//可视化被阻塞的区域
 	void DrawDebugVoxelBlocked(const FVector& VoxelCenter);
 
+	//Voxel状态发生改变的委托
+	 UPROPERTY(BlueprintAssignable, Category = "FlightNavigation")
+	 FOnVoxelStateChanged OnVoxelStateChanged;
+
+	//全体体素网格数据
+	UPROPERTY(BlueprintReadOnly, Category = "FlightNavigation")
+	TMap<FVector, FAStarNode> VoxelGrids;
 	
 private:
 
-	//全体体素网格数据
-	TMap<FVector, FAStarNode> VoxelGrids;
+	TArray<FVector> Path;
+	
     //障碍物包围盒体素网格
 	TArray<FVector> BanVoxelGridKey;
 
 	// ⭐ 加锁对象：保护 VoxelGrid 的读写
 	FCriticalSection VoxelGridCriticalSection;
+
+	//广播函数
+	void BroadcastVoxelStateChanged(bool bIsPath);
 };

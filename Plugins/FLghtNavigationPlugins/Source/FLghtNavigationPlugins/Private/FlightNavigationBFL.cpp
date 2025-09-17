@@ -316,7 +316,7 @@ TMap<FVector,FAStarNode> UFlightNavigationBFL::GenerateVoxelGrid(UWorld* World, 
 				// 可选：可视化每个体素（调试用）
 				
 				FColor Color = bWalkable ? FColor::Green : FColor::Red;
-				DrawDebugBox(World, VoxelCenter, FVector(VoxelSize * 0.5f), FQuat::Identity, Color, false, 10.0f, 0, 1.0f);
+				DrawDebugBox(World, VoxelCenter, FVector(VoxelSize * 0.5f), FQuat::Identity, Color, false, 50, 0, 1.0f);
 				
 			}
 		}
@@ -338,16 +338,85 @@ bool UFlightNavigationBFL::IsLocationWalkable( const UWorld* World, const FVecto
 	
 	// 简单实现：向下检测 50 单位，判断是否落在地面或可飞行区域
 	// 你也可以用多方向检测、ShapeTrace、或自定义 Channel
-	bool bHit = World->LineTraceSingleByChannel(
+	bool bUDHit = World->LineTraceSingleByChannel(
 		Hit,
 		Location + FVector(0, 0,  VoxelSize/2),   // 起点稍微上方
 		Location - FVector(0, 0, VoxelSize/2),  // 往下检测
 		ECC_Visibility,                 // 或你自定义的 Collision Channel
 		Params
 	);
+	// 左右检测
+	bool bLPHit = World->LineTraceSingleByChannel(
+		Hit,
+		Location + FVector(VoxelSize/2, 0,0  ),   // 起点稍微上方
+		Location - FVector(VoxelSize/2, 0, 0),  // 往下检测
+		ECC_Visibility,                 // 或你自定义的 Collision Channel
+		Params
+	);
+	// 前后检测
+	bool bFBHit = World->LineTraceSingleByChannel(
+		Hit,
+		Location + FVector(0, VoxelSize/2, 0 ),   // 起点稍微上方
+		Location - FVector(0, VoxelSize/2,0 ),  // 往下检测
+		ECC_Visibility,                 // 或你自定义的 Collision Channel
+		Params
+	);
+	
+	bool bHit = bUDHit && bLPHit && bFBHit;
 
 	// 如果没有命中，认为可通行；或者你也可以根据 Hit 的 Actor 类型判断
 	return !bHit;
+}
+
+void UFlightNavigationBFL::UpdateVoxelsInAllObstructionBox(
+    const UWorld* World,
+	TArray<TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>>& BanFlightNavMeshBoundsVolumes,
+	TMap<FVector, FAStarNode>& VoxelGrids,
+	TArray<FVector>& Path,
+	bool& bIsPath,
+	float NodeSize)
+{
+	for ( auto ObstructionBox : BanFlightNavMeshBoundsVolumes)
+	{
+		
+		// 障碍物 Box 的最小/最大点
+		FVector BoxMin = ObstructionBox->GetBounds().GetBox().GetCenter()-ObstructionBox->GetBounds().GetBox().GetExtent();
+		FVector BoxMax = ObstructionBox->GetBounds().GetBox().GetCenter()+ObstructionBox->GetBounds().GetBox().GetExtent();
+		// AsyncTask(ENamedThreads::GameThread, [this, BoxMin, BoxMax,ObstructionBox]()
+		// {
+		// 	// 遍历该范围内的所有 Voxel 索引
+		//           FScopeLock Lock(&VoxelGridCriticalSection);
+		for (auto BanVoxelGrids: VoxelGrids)
+		{
+			if (ObstructionBox->GetBounds().GetBox().IsInside(BanVoxelGrids.Key))
+			{
+				//printf("BanVoxelGrids.Key: %ls\n", *BanVoxelGrids.Key.ToString());
+				//BanVoxelGridKey.Add(BanVoxelGrids.Key);
+
+				VoxelGrids[BanVoxelGrids.Key].bIsWalkable = false;
+				if (Path.Num() > 0)
+				{
+					for (FVector P : Path)
+					{
+						if (P == BanVoxelGrids.Key)
+						{
+							bIsPath = true;
+						}
+					}
+				}
+	                	
+				DrawDebugVoxelBlocked( World,BanVoxelGrids.Key, NodeSize);
+			}
+		}
+		// });
+	}
+}
+
+void UFlightNavigationBFL::DrawDebugVoxelBlocked(const UWorld* World,const FVector& VoxelCenter, float NodeSize)
+{
+	float VoxelSize = NodeSize;
+
+	DrawDebugBox(World, VoxelCenter, FVector(VoxelSize * 0.5f), FQuat::Identity, FColor::Red, false, 100, 0, 1.0f);
 }
 
 
