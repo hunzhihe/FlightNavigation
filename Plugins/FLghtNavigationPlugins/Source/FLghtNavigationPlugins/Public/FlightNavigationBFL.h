@@ -59,11 +59,9 @@ public:
 	static void UpdateVoxelsInAllObstructionBox(
 	const UWorld* World,
 		TArray<TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>>& BanFlightNavMeshBoundsVolumes,
+		TMap<TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>,TArray<FAStarNode*>>& VexolinBanVoxelGrids,
 		TMap<FVector, FAStarNode>& VoxelGrids,
-		TArray<FVector>& Path,
-		bool& bIsPath,
 		float NodeSize);
-	
 	/*-----------动态障碍物包围盒-----------------*/
 
 	/*-----------Debug-----------------*/

@@ -95,18 +95,30 @@ public:
 	TMap<FVector, FAStarNode> InitializeGenerateFlightNavMesh();
 	
 	/**
-	 * @brief 更新障碍物包围盒内的体素状态
+	 * 更新阻挡盒内的体素状态
 	 * 
-	 * 根据新的障碍物信息，更新体素网格中受影响区域的体素状态
+	 * 该函数用于更新指定区域内的体素阻挡信息，通常用于飞行导航系统中
+	 * 动态障碍物的检测和路径规划
 	 * 
-	 * 
+	 * @param Banbox需要改变内部体素状态的障碍盒
+	 * @param bIsBlocked 指示该区域是否被阻挡的布尔值
 	 */
 	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
-	void UpdateVoxelsInObstructionBox();
-	
+	void UpdateVoxelsInObstructionBox(UPARAM(ref)FVector BanboxCenter, bool bIsBlocked);
+
+    /**
+    * 获取禁飞区域包围盒的中心位置
+    * 
+    * @param BanBox 禁飞区域导航网格边界体积的软对象指针引用
+    * @return 返回禁飞区域包围盒的中心世界坐标位置
+    */
+    UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
+    FVector GetBanBoxCenter(UPARAM(ref)TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>& BanBox);
+
 
 	//可视化被阻塞的区域
-	void DrawDebugVoxelBlocked(const FVector& VoxelCenter);
+	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
+	void DrawDebugVoxelBlocked(const FAStarNode& Voxel);
 
 	//Voxel状态发生改变的委托
 	 UPROPERTY(BlueprintAssignable, Category = "FlightNavigation")
@@ -115,13 +127,18 @@ public:
 	//全体体素网格数据
 	UPROPERTY(BlueprintReadOnly, Category = "FlightNavigation")
 	TMap<FVector, FAStarNode> VoxelGrids;
+
+
 	
 private:
 
 	TArray<FVector> Path;
 	
     //障碍物包围盒体素网格
-	TArray<FVector> BanVoxelGridKey;
+	TMap<TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>,TArray<FAStarNode*>> VexolinBanVoxelGrids;
+
+	//障碍物包围盒
+	TMap<FVector, TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>> BanVoxelGrids;
 
 	// ⭐ 加锁对象：保护 VoxelGrid 的读写
 	FCriticalSection VoxelGridCriticalSection;

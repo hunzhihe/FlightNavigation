@@ -4,6 +4,7 @@
 #include "FlightNavigationBFL.h"
 
 #include "Chaos/Deformable/ChaosDeformableCollisionsProxy.h"
+#include "Engine/OverlapResult.h"
 #include "Kismet/GameplayStatics.h"
 
 
@@ -328,86 +329,83 @@ bool UFlightNavigationBFL::IsLocationWalkable( const UWorld* World, const FVecto
 {
 	if (!World) return false;
 
-	
-	FHitResult Hit;
+	// 定义检测用的盒体范围
+	float BoxHalfExtent = VoxelSize * 0.5f; // 盒体的一半长度，比如 VoxelSize=100cm → 盒体是 50x50x50 cm
+	FVector BoxCenter = Location;           // 盒体中心点
+
+	// 可根据需求调整盒体的大小，比如：
+	// FVector BoxExtent(BoxHalfExtent, BoxHalfExtent, BoxHalfExtent); // 正方体
+	// 或者更矮一些的盒子，比如只检测脚下和身体周围：
+	// FVector BoxExtent(BoxHalfExtent, BoxHalfExtent, 20.0f);
+
+	FCollisionShape BoxShape = FCollisionShape::MakeBox(FVector(BoxHalfExtent, BoxHalfExtent, BoxHalfExtent));
+	// 或者更矮的盒子（比如只检测角色脚下一小块，而不是全身）：
+	// FCollisionShape BoxShape = FCollisionShape::MakeBox(FVector(BoxHalfExtent, BoxHalfExtent, 30.0f));
+
+	// 设置碰撞查询参数
 	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(nullptr);
+	Params.AddIgnoredActor(nullptr); // 可忽略特定 Actor，比如自己
 
-	
-	// 可根据需要忽略某个 Actor
-	
-	// 简单实现：向下检测 50 单位，判断是否落在地面或可飞行区域
-	// 你也可以用多方向检测、ShapeTrace、或自定义 Channel
-	bool bUDHit = World->LineTraceSingleByChannel(
-		Hit,
-		Location + FVector(0, 0,  VoxelSize/2),   // 起点稍微上方
-		Location - FVector(0, 0, VoxelSize/2),  // 往下检测
-		ECC_Visibility,                 // 或你自定义的 Collision Channel
-		Params
-	);
-	// 左右检测
-	bool bLPHit = World->LineTraceSingleByChannel(
-		Hit,
-		Location + FVector(VoxelSize/2, 0,0  ),   // 起点稍微上方
-		Location - FVector(VoxelSize/2, 0, 0),  // 往下检测
-		ECC_Visibility,                 // 或你自定义的 Collision Channel
-		Params
-	);
-	// 前后检测
-	bool bFBHit = World->LineTraceSingleByChannel(
-		Hit,
-		Location + FVector(0, VoxelSize/2, 0 ),   // 起点稍微上方
-		Location - FVector(0, VoxelSize/2,0 ),  // 往下检测
-		ECC_Visibility,                 // 或你自定义的 Collision Channel
-		Params
-	);
-	
-	bool bHit = bUDHit && bLPHit && bFBHit;
+	// 碰撞类型
+	ECollisionChannel TraceChannel = ECC_Visibility; // 或者你自定义的可行走/障碍物通道，比如 ECC_GameTraceChannel1
 
-	// 如果没有命中，认为可通行；或者你也可以根据 Hit 的 Actor 类型判断
-	return !bHit;
+	TArray<FOverlapResult> Overlaps;
+	bool bBlockingHit = World->OverlapMultiByChannel(
+		Overlaps,
+		BoxCenter,
+		FQuat::Identity,         // 无旋转
+		TraceChannel,            // 碰撞通道
+		BoxShape,                // 盒体形状
+		Params
+	);
+
+	// 可选：绘制调试盒（开发时可见）
+	// DrawDebugBox(World, BoxCenter, FVector(BoxHalfExtent, BoxHalfExtent, BoxHalfExtent), FQuat::Identity, FColor::Green, false, 2.0f);
+
+	// 如果有任何一个物体 **阻挡（Blocking）** 了这个盒体区域，那么认为不可行走
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		if (Overlap.bBlockingHit)
+		{
+			// 如果需要，可以进一步判断 Overlap.GetActor() 是什么，比如忽略某些类型
+			return false;
+		}
+	}
+
+	// 没有检测到阻挡物，认为可行走
+	return true;
+	
 }
 
 void UFlightNavigationBFL::UpdateVoxelsInAllObstructionBox(
     const UWorld* World,
 	TArray<TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>>& BanFlightNavMeshBoundsVolumes,
+	TMap<TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>,TArray<FAStarNode*>>& VexolinBanVoxelGrids,
 	TMap<FVector, FAStarNode>& VoxelGrids,
-	TArray<FVector>& Path,
-	bool& bIsPath,
 	float NodeSize)
 {
-	for ( auto ObstructionBox : BanFlightNavMeshBoundsVolumes)
+	//TMap<TSoftObjectPtr<ABanFlightNavMeshBoundsVolume>,TArray<FAStarNode>> VexolinBanVoxelGrids;
+	
+	for ( auto& ObstructionBox : BanFlightNavMeshBoundsVolumes)
 	{
-		
+		//包围盒中所有的体素
+		TArray<FAStarNode*> BanVoxelGridS;
 		// 障碍物 Box 的最小/最大点
 		FVector BoxMin = ObstructionBox->GetBounds().GetBox().GetCenter()-ObstructionBox->GetBounds().GetBox().GetExtent();
 		FVector BoxMax = ObstructionBox->GetBounds().GetBox().GetCenter()+ObstructionBox->GetBounds().GetBox().GetExtent();
-		// AsyncTask(ENamedThreads::GameThread, [this, BoxMin, BoxMax,ObstructionBox]()
-		// {
-		// 	// 遍历该范围内的所有 Voxel 索引
-		//           FScopeLock Lock(&VoxelGridCriticalSection);
-		for (auto BanVoxelGrids: VoxelGrids)
+		
+		for (auto& BanVoxel: VoxelGrids)
 		{
-			if (ObstructionBox->GetBounds().GetBox().IsInside(BanVoxelGrids.Key))
+			if (ObstructionBox->GetBounds().GetBox().IsInside(BanVoxel.Key))
 			{
-				//printf("BanVoxelGrids.Key: %ls\n", *BanVoxelGrids.Key.ToString());
-				//BanVoxelGridKey.Add(BanVoxelGrids.Key);
-
-				VoxelGrids[BanVoxelGrids.Key].bIsWalkable = false;
-				if (Path.Num() > 0)
-				{
-					for (FVector P : Path)
-					{
-						if (P == BanVoxelGrids.Key)
-						{
-							bIsPath = true;
-						}
-					}
-				}
+                BanVoxelGridS.Add(&BanVoxel.Value);
+				
+				VoxelGrids[BanVoxel.Key].bIsWalkable = false;
 	                	
-				DrawDebugVoxelBlocked( World,BanVoxelGrids.Key, NodeSize);
+				DrawDebugVoxelBlocked( World,BanVoxel.Key, NodeSize);
 			}
 		}
+		VexolinBanVoxelGrids.Add(ObstructionBox,BanVoxelGridS);
 		// });
 	}
 }
