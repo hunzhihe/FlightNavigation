@@ -2,8 +2,10 @@
 
 
 #include "AFlightNavMeshBoundsVolume.h"
-
+#include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
+
+
 
 AFlightNavMeshBoundsVolume::AFlightNavMeshBoundsVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

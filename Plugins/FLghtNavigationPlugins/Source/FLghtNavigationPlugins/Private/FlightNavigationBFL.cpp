@@ -1,12 +1,11 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "FlightNavigationBFL.h"
-
-#include "Chaos/Deformable/ChaosDeformableCollisionsProxy.h"
+#include "Engine/World.h"
+#include "Chaos/ChaosEngineInterface.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
-#include "Kismet/GameplayStatics.h"
-
+#include "CollisionShape.h"
+#include "Engine/CollisionProfile.h"
 
 
 TArray<FVector> UFlightNavigationBFL::FindPath(const FVector& Start, const FVector& Goal,
@@ -315,10 +314,10 @@ TMap<FVector,FAStarNode> UFlightNavigationBFL::GenerateVoxelGrid(UWorld* World, 
 				VoxelGrids.Add(VoxelCenter, FAStarNode(VoxelCenter, VoxelSize, bWalkable));
 
 				// 可选：可视化每个体素（调试用）
-				
+                #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				FColor Color = bWalkable ? FColor::Green : FColor::Red;
 				DrawDebugBox(World, VoxelCenter, FVector(VoxelSize * 0.5f), FQuat::Identity, Color, false, 50, 0, 1.0f);
-				
+                #endif
 			}
 		}
 	}
@@ -401,8 +400,9 @@ void UFlightNavigationBFL::UpdateVoxelsInAllObstructionBox(
                 BanVoxelGridS.Add(&BanVoxel.Value);
 				
 				VoxelGrids[BanVoxel.Key].bIsWalkable = false;
-	                	
+                #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				DrawDebugVoxelBlocked( World,BanVoxel.Key, NodeSize);
+                #endif
 			}
 		}
 		VexolinBanVoxelGrids.Add(ObstructionBox,BanVoxelGridS);

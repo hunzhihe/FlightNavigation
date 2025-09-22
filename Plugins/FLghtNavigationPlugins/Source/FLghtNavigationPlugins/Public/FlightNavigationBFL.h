@@ -18,6 +18,7 @@ class FLGHTNAVIGATIONPLUGINS_API UFlightNavigationBFL : public UBlueprintFunctio
 public:
 	/*-----------A*算法-----------------*/	
 	// 寻路入口函数（寻路主函数）
+	UFUNCTION(BlueprintCallable, Category = "FlightNavigation")
 	static TArray<FVector> FindPath(
 		const FVector& Start,
 		const FVector& Goal,

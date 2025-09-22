@@ -2,8 +2,9 @@
 
 
 #include "BanFlightNavMeshBoundsVolume.h"
-
+#include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
+
 
 ABanFlightNavMeshBoundsVolume::ABanFlightNavMeshBoundsVolume(const FObjectInitializer& ObjectInitializer): Super(ObjectInitializer)
 {

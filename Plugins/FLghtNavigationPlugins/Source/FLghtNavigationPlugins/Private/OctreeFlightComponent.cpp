@@ -2,11 +2,10 @@
 
 
 #include "OctreeFlightComponent.h"
-
+#include "DrawDebugHelpers.h"
+#include "Async/Async.h"
 #include "BanFlightNavMeshBoundsVolume.h"
 #include "FlightNavigationBFL.h"
-#include "MeshPaintVisualize.h"
-#include "VoxelNavMeshGenerator.h"
 
 
 UOctreeFlightComponent::UOctreeFlightComponent()
@@ -18,12 +17,14 @@ TArray<FVector> UOctreeFlightComponent::FindFlightPath()
 {
 	
 	Path = UFlightNavigationBFL::FindPath(Start, Goal, VoxelGrids);
-	
+    #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	for (const FVector& P : Path)
 	{
+       
 		UE_LOG(LogTemp, Warning, TEXT("Path Point: %s"), *P.ToString());
-		DrawDebugSphere(GetWorld(), P, 10, 8, FColor::Red, true, 20, 0);
+		DrawDebugSphere(GetWorld(), P, 10, 8, FColor::Red, false, 5, 0);
 	}
+    #endif
 	return Path;
 }
 
@@ -35,8 +36,8 @@ TMap<FVector, FAStarNode> UOctreeFlightComponent::InitializeGenerateFlightNavMes
 		 NavMeshMinBounds = FlightNavMeshBoundsVolume->GetBounds().GetBox().GetCenter()-FlightNavMeshBoundsVolume->GetBounds().GetBox().GetExtent();
 		 NavMeshMaxBounds = FlightNavMeshBoundsVolume->GetBounds().GetBox().GetCenter()+FlightNavMeshBoundsVolume->GetBounds().GetBox().GetExtent();
 		//
-		// NavMeshMinBounds = FVector (FIntVector(NavMeshMinBounds/NodeSize) * NodeSize);
-		// NavMeshMaxBounds = FVector (FIntVector(NavMeshMaxBounds/NodeSize) * NodeSize);
+		NavMeshMinBounds = FVector (FIntVector(NavMeshMinBounds/NodeSize) * NodeSize);
+		NavMeshMaxBounds = FVector (FIntVector(NavMeshMaxBounds/NodeSize) * NodeSize);
 		VoxelGrids = UFlightNavigationBFL::GenerateVoxelGrid(GetWorld(), NavMeshMinBounds, NavMeshMaxBounds, NodeSize);
 	} 
 	else
@@ -85,33 +86,6 @@ void UOctreeFlightComponent::UpdateVoxelsInObstructionBox(FVector BanboxCenter, 
 			}
 		}
 	}
-	
-	//UFlightNavigationBFL::UpdateVoxelsInAllObstructionBox( GetWorld(),BanFlightNavMeshBoundsVolumes, VoxelGrids, NodeSize);
-	// BanVoxelGrids.Find(ObstructionBoxCenter);
-	// FVector MinBounds = BanVoxelGrids.Find(ObstructionBoxCenter)->Get()->GetBounds().GetBox().GetCenter()-BanVoxelGrids.Find(ObstructionBoxCenter)->Get()->GetBounds().GetBox().GetExtent();
-	// FVector MaxBounds = BanVoxelGrids.Find(ObstructionBoxCenter)->Get()->GetBounds().GetBox().GetCenter()+BanVoxelGrids.Find(ObstructionBoxCenter)->Get()->GetBounds().GetBox().GetExtent();
-	// for (auto& BanVoxel: VoxelGrids)
-	// {
-	// 	if (BanVoxelGrids.Find(ObstructionBoxCenter)->Get()->GetBounds().GetBox().IsInside(BanVoxel.Key))
-	// 	{
-	// 		//printf("BanVoxelGrids.Key: %ls\n", *BanVoxelGrids.Key.ToString());
-	// 		//BanVoxelGridKey.Add(BanVoxelGrids.Key);
-	//
-	// 		VoxelGrids[BanVoxel.Key].bIsWalkable = bIsBlocked;
-	// 		//判断是否在已知路径中
-	// 		if (Path.Num() > 0)
-	// 		{
-	// 			for (FVector P : Path)
-	// 			{
-	// 				if (P == BanVoxel.Key)
-	// 				{
-	// 					bIsPath = true;
-	// 				}
-	// 			}
-	// 		}
-	// 		DrawDebugVoxelBlocked(BanVoxel.Key);
-	// 	}
-	// }
 	
 	BroadcastVoxelStateChanged(bIsPath);
 }

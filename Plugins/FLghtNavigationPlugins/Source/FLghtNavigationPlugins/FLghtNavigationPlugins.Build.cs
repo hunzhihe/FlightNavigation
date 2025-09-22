@@ -28,8 +28,7 @@ public class FLghtNavigationPlugins : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"NavigationSystem",
-				"AIModule",
+				"PhysicsCore"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
